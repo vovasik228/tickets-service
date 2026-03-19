@@ -7,17 +7,20 @@ const pool = require('./db');
 
 const app = express();
 
+// важно для Render
+const PORT = process.env.PORT || 5000;
+
 app.use(express.json());
 app.use(express.static(__dirname));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// создаём папку uploads если нет
+// создаём папку uploads
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
-// настройка загрузки файлов
+// настройка загрузки
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadsDir);
@@ -49,14 +52,20 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+
+// =======================
+// АВТОРИЗАЦИЯ
+// =======================
+
 // регистрация
 app.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
+
     const hash = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
-      'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email',
+      'INSERT INTO users (email, password) VALUES ($1,$2) RETURNING id,email',
       [email, hash]
     );
 
@@ -81,19 +90,28 @@ app.post('/login', async (req, res) => {
     }
 
     const user = result.rows[0];
+
     const ok = await bcrypt.compare(password, user.password);
 
     if (!ok) {
       return res.status(400).send('Неверный пароль');
     }
 
-    res.json({ id: user.id, email: user.email });
+    res.json({
+      id: user.id,
+      email: user.email
+    });
+
   } catch (e) {
     res.status(500).send('Ошибка входа');
   }
 });
 
-// загрузка фото
+
+// =======================
+// ЗАГРУЗКА ФОТО
+// =======================
+
 app.post('/upload', (req, res) => {
   upload.single('image')(req, res, function (err) {
     if (err) return res.status(400).send(err.message);
@@ -108,6 +126,11 @@ app.post('/upload', (req, res) => {
   });
 });
 
+
+// =======================
+// ОБЪЯВЛЕНИЯ
+// =======================
+
 // добавить объявление
 app.post('/ads', async (req, res) => {
   try {
@@ -119,6 +142,7 @@ app.post('/ads', async (req, res) => {
     );
 
     res.send('OK');
+
   } catch (e) {
     res.status(500).send('Ошибка добавления');
   }
@@ -128,13 +152,14 @@ app.post('/ads', async (req, res) => {
 app.get('/ads', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT ads.*, users.email 
-      FROM ads 
-      LEFT JOIN users ON ads.user_id = users.id 
+      SELECT ads.*, users.email
+      FROM ads
+      LEFT JOIN users ON ads.user_id = users.id
       ORDER BY ads.id DESC
     `);
 
     res.json(result.rows);
+
   } catch (e) {
     res.status(500).send('Ошибка загрузки');
   }
@@ -155,19 +180,27 @@ app.delete('/ads/:id', async (req, res) => {
 
       if (image && image.startsWith('/uploads/')) {
         const filePath = path.join(__dirname, image);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
       }
     }
 
     await pool.query('DELETE FROM ads WHERE id = $1', [id]);
 
     res.send('Удалено');
+
   } catch (e) {
     res.status(500).send('Ошибка удаления');
   }
 });
 
-// ⭐ СОЗДАНИЕ БАЗЫ (ОТКРЫТЬ /init-db)
+
+// =======================
+// СОЗДАНИЕ БАЗЫ
+// =======================
+
 app.get('/init-db', async (req, res) => {
   try {
     await pool.query(`
@@ -206,13 +239,18 @@ app.get('/init-db', async (req, res) => {
     `);
 
     res.send('DB CREATED');
+
   } catch (e) {
     console.error(e);
     res.status(500).send('Ошибка создания БД');
   }
 });
 
-// запуск сервера
-app.listen(5000, () => {
+
+// =======================
+// ЗАПУСК
+// =======================
+
+app.listen(PORT, () => {
   console.log('СЕРВЕР ЗАПУЩЕН');
 });
