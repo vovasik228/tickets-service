@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Билеты</title>
+
+<style>
+body { font-family: Arial; background:#f0f2f5; margin:0; }
+header { background:#111; color:white; padding:15px; text-align:center; }
+
+.container { width:1000px; margin:30px auto; }
+
+.box {
+  background:white;
+  padding:20px;
+  margin-bottom:20px;
+  border-radius:10px;
+}
+
+input, button, textarea {
+  width:100%;
+  padding:10px;
+  margin-bottom:10px;
+  box-sizing:border-box;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.card {
+  background:white;
+  padding:10px;
+  border-radius:10px;
+}
+
+.card img {
+  width:100%;
+  height:180px;
+  object-fit:cover;
+  border-radius:8px;
+}
+
+.chat-box {
+  background:white;
+  padding:20px;
+  border-radius:10px;
+}
+
+.chat-messages {
+  border:1px solid #ddd;
+  min-height:200px;
+  max-height:300px;
+  overflow-y:auto;
+  padding:10px;
+}
+
+.message {
+  background:#eee;
+  padding:6px;
+  margin-bottom:5px;
+  border-radius:6px;
+}
+
+.my-message {
+  background:#d1ffd1;
+}
+</style>
+</head>
+
+<body>
+
+<header>🎭 Билеты</header>
+
+<div class="container">
+
+<div class="box">
+<div id="status">Вы не вошли</div>
+
+<input id="email" placeholder="Email">
+<input id="password" placeholder="Пароль">
+
+<button onclick="register()">Регистрация</button>
+<button onclick="login()">Вход</button>
+<button onclick="logout()">Выйти</button>
+</div>
+
+<div class="box">
+<h3>👤 Мой профиль</h3>
+<div id="myAds"></div>
+</div>
+
+<div class="box">
+<input id="title" placeholder="Название">
+<input id="price" placeholder="Цена">
+<input type="file" id="image">
+<button onclick="addAd()">Добавить</button>
+</div>
+
+<div class="grid">
+
+<div>
+<div class="box">
+<h3>Объявления</h3>
+<div id="list"></div>
+</div>
+</div>
+
+<div>
+<div class="chat-box">
+<h3>💬 Чат</h3>
+
+<div id="chatInfo">Выберите продавца</div>
+
+<div id="chatMessages" class="chat-messages"></div>
+
+<textarea id="messageText"></textarea>
+<button onclick="sendMessage()">Отправить</button>
+
+</div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let currentUser = JSON.parse(localStorage.getItem('user')) || null;
+let currentChatUser = null;
+
+const statusDiv = document.getElementById('status');
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+const titleInput = document.getElementById('title');
+const priceInput = document.getElementById('price');
+const imageInput = document.getElementById('image');
+const listDiv = document.getElementById('list');
+const myAdsDiv = document.getElementById('myAds');
+const chatMessagesDiv = document.getElementById('chatMessages');
+const chatInfoDiv = document.getElementById('chatInfo');
+const messageText = document.getElementById('messageText');
+
+function updateStatus(){
+  statusDiv.textContent = currentUser ? "Вы вошли как: " + currentUser.email : "Вы не вошли";
+}
+
+function logout(){
+  currentUser = null;
+  localStorage.removeItem('user');
+  updateStatus();
+  loadAds();
+  myAdsDiv.innerHTML = '';
+}
+
+async function register(){
+  const res = await fetch('/register',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      email:emailInput.value,
+      password:passwordInput.value
+    })
+  });
+
+  const user = await res.json();
+  currentUser = user;
+  localStorage.setItem('user',JSON.stringify(user));
+
+  updateStatus();
+  loadAds();
+  loadMyAds();
+}
+
+async function login(){
+  const res = await fetch('/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      email:emailInput.value,
+      password:passwordInput.value
+    })
+  });
+
+  const user = await res.json();
+  currentUser = user;
+  localStorage.setItem('user',JSON.stringify(user));
+
+  updateStatus();
+  loadAds();
+  loadMyAds();
+}
+
+async function upload(){
+  const file = imageInput.files[0];
+  if(!file) return '';
+
+  const fd = new FormData();
+  fd.append('image',file);
+
+  const res = await fetch('/upload',{method:'POST',body:fd});
+  const data = await res.json();
+
+  return data.image_url;
+}
+
+async function addAd(){
+  if(!currentUser){
+    alert('Войди');
+    return;
+  }
+
+  const image_url = await upload();
+
+  await fetch('/ads',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      title:titleInput.value,
+      price:priceInput.value,
+      user_id:currentUser.id,
+      image_url
+    })
+  });
+
+  loadAds();
+  loadMyAds();
+}
+
+async function loadAds(){
+  const res = await fetch('/ads?user_id='+(currentUser?.id||''));
+  const ads = await res.json();
+
+  listDiv.innerHTML='';
+
+  ads.forEach(ad=>{
+    listDiv.innerHTML+=`
+      <div class="card">
+        ${ad.image_url ? `<img src="${ad.image_url}">` : ''}
+        <b>${ad.title}</b><br>
+        ${ad.price} €<br>
+        ${ad.email}<br>
+        <button onclick="openChat(${ad.user_id}, '${ad.email}')">Написать</button>
+      </div>
+    `;
+  });
+}
+
+async function loadMyAds(){
+  if(!currentUser) return;
+
+  const res = await fetch('/ads?user_id='+currentUser.id);
+  const ads = await res.json();
+
+  myAdsDiv.innerHTML='';
+
+  ads.filter(a=>a.user_id===currentUser.id).forEach(ad=>{
+    myAdsDiv.innerHTML+=`
+      <div class="card">
+        ${ad.image_url ? `<img src="${ad.image_url}">` : ''}
+        <b>${ad.title}</b><br>
+        ${ad.price} €<br>
+        <button onclick="deleteAd(${ad.id})">Удалить</button>
+      </div>
+    `;
+  });
+}
+
+async function deleteAd(id){
+  await fetch('/ads/'+id,{method:'DELETE'});
+  loadAds();
+  loadMyAds();
+}
+
+function openChat(id,email){
+  currentChatUser = {id,email};
+  chatInfoDiv.textContent = "Чат с: "+email;
+  loadMessages();
+}
+
+async function sendMessage(){
+  await fetch('/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      from_user:currentUser.id,
+      to_user:currentChatUser.id,
+      text:messageText.value
+    })
+  });
+
+  messageText.value='';
+  loadMessages();
+}
+
+async function loadMessages(){
+  const res = await fetch('/messages?user1='+currentUser.id+'&user2='+currentChatUser.id);
+  const msgs = await res.json();
+
+  chatMessagesDiv.innerHTML='';
+
+  msgs.forEach(m=>{
+    chatMessagesDiv.innerHTML+=`
+      <div class="message ${m.from_user===currentUser.id?'my-message':''}">
+        ${m.text}
+      </div>
+    `;
+  });
+}
+
+updateStatus();
+loadAds();
+loadMyAds();
+
+</script>
+
+</body>
+</html>
