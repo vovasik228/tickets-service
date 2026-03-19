@@ -1,320 +1,519 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Билеты</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Билеты</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-<style>
-body { font-family: Arial; background:#f0f2f5; margin:0; }
-header { background:#111; color:white; padding:15px; text-align:center; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
 
-.container { width:1000px; margin:30px auto; }
+    header {
+      background: #111;
+      color: white;
+      padding: 18px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+    }
 
-.box {
-  background:white;
-  padding:20px;
-  margin-bottom:20px;
-  border-radius:10px;
-}
+    .container {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 0 15px;
+    }
 
-input, button, textarea {
-  width:100%;
-  padding:10px;
-  margin-bottom:10px;
-  box-sizing:border-box;
-}
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
 
-.grid {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-}
+    h2, h3 {
+      margin-top: 0;
+    }
 
-.card {
-  background:white;
-  padding:10px;
-  border-radius:10px;
-}
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
 
-.card img {
-  width:100%;
-  height:180px;
-  object-fit:cover;
-  border-radius:8px;
-}
+    button {
+      background: #111;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
 
-.chat-box {
-  background:white;
-  padding:20px;
-  border-radius:10px;
-}
+    button:hover {
+      background: #333;
+    }
 
-.chat-messages {
-  border:1px solid #ddd;
-  min-height:200px;
-  max-height:300px;
-  overflow-y:auto;
-  padding:10px;
-}
+    button.red {
+      background: #d93025;
+    }
 
-.message {
-  background:#eee;
-  padding:6px;
-  margin-bottom:5px;
-  border-radius:6px;
-}
+    button.red:hover {
+      background: #b3261e;
+    }
 
-.my-message {
-  background:#d1ffd1;
-}
-</style>
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .ads-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .ad-item {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ad-item img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      background: #eee;
+    }
+
+    .ad-content {
+      padding: 14px;
+    }
+
+    .ad-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .ad-price {
+      font-size: 20px;
+      color: #0a7f2e;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    .ad-email {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 12px;
+      word-break: break-word;
+    }
+
+    .muted {
+      color: #777;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .status {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 800px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        font-size: 20px;
+      }
+    }
+  </style>
 </head>
-
 <body>
+  <header>🎭 Билеты в театр</header>
 
-<header>🎭 Билеты</header>
+  <div class="container">
+    <div class="card">
+      <h2>Аккаунт</h2>
+      <div id="authStatus" class="status">Вы не вошли</div>
 
-<div class="container">
+      <input type="email" id="email" placeholder="Email" />
+      <input type="password" id="password" placeholder="Пароль" />
 
-<div class="box">
-<div id="status">Вы не вошли</div>
+      <button onclick="registerUser()">Регистрация</button>
+      <button onclick="loginUser()">Вход</button>
+      <button onclick="logoutUser()">Выйти</button>
+    </div>
 
-<input id="email" placeholder="Email">
-<input id="password" placeholder="Пароль">
-
-<button onclick="register()">Регистрация</button>
-<button onclick="login()">Вход</button>
-<button onclick="logout()">Выйти</button>
-</div>
-
-<div class="box">
-<h3>👤 Мой профиль</h3>
-<div id="myAds"></div>
-</div>
-
-<div class="box">
-<input id="title" placeholder="Название">
-<input id="price" placeholder="Цена">
-<input type="file" id="image">
-<button onclick="addAd()">Добавить</button>
-</div>
-
-<div class="grid">
-
-<div>
-<div class="box">
-<h3>Объявления</h3>
-<div id="list"></div>
-</div>
-</div>
-
-<div>
-<div class="chat-box">
-<h3>💬 Чат</h3>
-
-<div id="chatInfo">Выберите продавца</div>
-
-<div id="chatMessages" class="chat-messages"></div>
-
-<textarea id="messageText"></textarea>
-<button onclick="sendMessage()">Отправить</button>
-
-</div>
-</div>
-
-</div>
-
-</div>
-
-<script>
-
-let currentUser = JSON.parse(localStorage.getItem('user')) || null;
-let currentChatUser = null;
-
-const statusDiv = document.getElementById('status');
-const emailInput = document.getElementById('email');
-const passwordInput = document.getElementById('password');
-const titleInput = document.getElementById('title');
-const priceInput = document.getElementById('price');
-const imageInput = document.getElementById('image');
-const listDiv = document.getElementById('list');
-const myAdsDiv = document.getElementById('myAds');
-const chatMessagesDiv = document.getElementById('chatMessages');
-const chatInfoDiv = document.getElementById('chatInfo');
-const messageText = document.getElementById('messageText');
-
-function updateStatus(){
-  statusDiv.textContent = currentUser ? "Вы вошли как: " + currentUser.email : "Вы не вошли";
-}
-
-function logout(){
-  currentUser = null;
-  localStorage.removeItem('user');
-  updateStatus();
-  loadAds();
-  myAdsDiv.innerHTML = '';
-}
-
-async function register(){
-  const res = await fetch('/register',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      email:emailInput.value,
-      password:passwordInput.value
-    })
-  });
-
-  const user = await res.json();
-  currentUser = user;
-  localStorage.setItem('user',JSON.stringify(user));
-
-  updateStatus();
-  loadAds();
-  loadMyAds();
-}
-
-async function login(){
-  const res = await fetch('/login',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      email:emailInput.value,
-      password:passwordInput.value
-    })
-  });
-
-  const user = await res.json();
-  currentUser = user;
-  localStorage.setItem('user',JSON.stringify(user));
-
-  updateStatus();
-  loadAds();
-  loadMyAds();
-}
-
-async function upload(){
-  const file = imageInput.files[0];
-  if(!file) return '';
-
-  const fd = new FormData();
-  fd.append('image',file);
-
-  const res = await fetch('/upload',{method:'POST',body:fd});
-  const data = await res.json();
-
-  return data.image_url;
-}
-
-async function addAd(){
-  if(!currentUser){
-    alert('Войди');
-    return;
-  }
-
-  const image_url = await upload();
-
-  await fetch('/ads',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      title:titleInput.value,
-      price:priceInput.value,
-      user_id:currentUser.id,
-      image_url
-    })
-  });
-
-  loadAds();
-  loadMyAds();
-}
-
-async function loadAds(){
-  const res = await fetch('/ads?user_id='+(currentUser?.id||''));
-  const ads = await res.json();
-
-  listDiv.innerHTML='';
-
-  ads.forEach(ad=>{
-    listDiv.innerHTML+=`
+    <div class="row">
       <div class="card">
-        ${ad.image_url ? `<img src="${ad.image_url}">` : ''}
-        <b>${ad.title}</b><br>
-        ${ad.price} €<br>
-        ${ad.email}<br>
-        <button onclick="openChat(${ad.user_id}, '${ad.email}')">Написать</button>
+        <h2>👤 Мой профиль</h2>
+        <div id="profileInfo" class="muted">Сначала войдите в аккаунт</div>
       </div>
-    `;
-  });
-}
 
-async function loadMyAds(){
-  if(!currentUser) return;
-
-  const res = await fetch('/ads?user_id='+currentUser.id);
-  const ads = await res.json();
-
-  myAdsDiv.innerHTML='';
-
-  ads.filter(a=>a.user_id===currentUser.id).forEach(ad=>{
-    myAdsDiv.innerHTML+=`
       <div class="card">
-        ${ad.image_url ? `<img src="${ad.image_url}">` : ''}
-        <b>${ad.title}</b><br>
-        ${ad.price} €<br>
-        <button onclick="deleteAd(${ad.id})">Удалить</button>
+        <h2>➕ Добавить объявление</h2>
+        <input type="text" id="title" placeholder="Название" />
+        <input type="number" id="price" placeholder="Цена" />
+        <input type="file" id="image" accept="image/png,image/jpeg,image/webp" />
+        <button onclick="addAd()">Добавить объявление</button>
       </div>
-    `;
-  });
-}
+    </div>
 
-async function deleteAd(id){
-  await fetch('/ads/'+id,{method:'DELETE'});
-  loadAds();
-  loadMyAds();
-}
+    <div class="card">
+      <h2>🧾 Мои объявления</h2>
+      <div id="myAds" class="ads-grid"></div>
+    </div>
 
-function openChat(id,email){
-  currentChatUser = {id,email};
-  chatInfoDiv.textContent = "Чат с: "+email;
-  loadMessages();
-}
+    <div class="card">
+      <h2>📢 Все объявления</h2>
+      <div id="allAds" class="ads-grid"></div>
+    </div>
+  </div>
 
-async function sendMessage(){
-  await fetch('/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      from_user:currentUser.id,
-      to_user:currentChatUser.id,
-      text:messageText.value
-    })
-  });
+  <script>
+    function getUser() {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    }
 
-  messageText.value='';
-  loadMessages();
-}
+    function setUser(user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
 
-async function loadMessages(){
-  const res = await fetch('/messages?user1='+currentUser.id+'&user2='+currentChatUser.id);
-  const msgs = await res.json();
+    function clearUser() {
+      localStorage.removeItem('user');
+    }
 
-  chatMessagesDiv.innerHTML='';
+    function escapeHtml(text) {
+      if (text === null || text === undefined) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
 
-  msgs.forEach(m=>{
-    chatMessagesDiv.innerHTML+=`
-      <div class="message ${m.from_user===currentUser.id?'my-message':''}">
-        ${m.text}
-      </div>
-    `;
-  });
-}
+    async function registerUser() {
+      try {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
 
-updateStatus();
-loadAds();
-loadMyAds();
+        if (!email || !password) {
+          alert('Введите email и пароль');
+          return;
+        }
 
-</script>
+        const res = await fetch('/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
 
+        if (!res.ok) {
+          const text = await res.text();
+          alert(text || 'Ошибка регистрации');
+          return;
+        }
+
+        const user = await res.json();
+        setUser(user);
+
+        alert('Регистрация успешна');
+        updateAuthUI();
+        loadMyAds();
+        loadAllAds();
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка регистрации');
+      }
+    }
+
+    async function loginUser() {
+      try {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+
+        if (!email || !password) {
+          alert('Введите email и пароль');
+          return;
+        }
+
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          alert(text || 'Ошибка входа');
+          return;
+        }
+
+        const user = await res.json();
+
+        // сохраняем пользователя
+        setUser(user);
+
+        alert('Вход выполнен');
+        updateAuthUI();
+        loadMyAds();
+        loadAllAds();
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка входа');
+      }
+    }
+
+    function logoutUser() {
+      clearUser();
+      updateAuthUI();
+      document.getElementById('myAds').innerHTML = '';
+      alert('Вы вышли из аккаунта');
+    }
+
+    async function updateAuthUI() {
+      const user = getUser();
+      const authStatus = document.getElementById('authStatus');
+      const profileInfo = document.getElementById('profileInfo');
+
+      if (!user) {
+        authStatus.textContent = 'Вы не вошли';
+        profileInfo.textContent = 'Сначала войдите в аккаунт';
+        return;
+      }
+
+      authStatus.textContent = 'Вы вошли как: ' + user.email;
+
+      try {
+        const res = await fetch('/profile/' + user.id);
+
+        if (!res.ok) {
+          profileInfo.textContent = 'Не удалось загрузить профиль';
+          return;
+        }
+
+        const profile = await res.json();
+
+        profileInfo.innerHTML = `
+          <div><strong>ID:</strong> ${escapeHtml(profile.id)}</div>
+          <div><strong>Email:</strong> ${escapeHtml(profile.email)}</div>
+        `;
+      } catch (e) {
+        console.error(e);
+        profileInfo.textContent = 'Ошибка загрузки профиля';
+      }
+    }
+
+    async function uploadImage() {
+      const fileInput = document.getElementById('image');
+
+      if (!fileInput.files || !fileInput.files[0]) {
+        return null;
+      }
+
+      const formData = new FormData();
+      formData.append('image', fileInput.files[0]);
+
+      const res = await fetch('/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Ошибка загрузки фото');
+      }
+
+      const data = await res.json();
+      return data.image_url;
+    }
+
+    async function addAd() {
+      try {
+        const user = getUser();
+
+        if (!user) {
+          alert('Сначала войдите');
+          return;
+        }
+
+        const title = document.getElementById('title').value.trim();
+        const price = document.getElementById('price').value.trim();
+
+        if (!title || !price) {
+          alert('Введите название и цену');
+          return;
+        }
+
+        let imageUrl = null;
+
+        const fileInput = document.getElementById('image');
+        if (fileInput.files && fileInput.files[0]) {
+          imageUrl = await uploadImage();
+        }
+
+        const res = await fetch('/ads', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title,
+            price: Number(price),
+            user_id: user.id,
+            image_url: imageUrl
+          })
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          alert(text || 'Ошибка добавления');
+          return;
+        }
+
+        alert('Объявление добавлено');
+
+        document.getElementById('title').value = '';
+        document.getElementById('price').value = '';
+        document.getElementById('image').value = '';
+
+        loadAllAds();
+        loadMyAds();
+      } catch (e) {
+        console.error(e);
+        alert(e.message || 'Ошибка добавления объявления');
+      }
+    }
+
+    async function deleteAd(adId) {
+      try {
+        const user = getUser();
+
+        if (!user) {
+          alert('Сначала войдите');
+          return;
+        }
+
+        const ok = confirm('Удалить объявление?');
+        if (!ok) return;
+
+        const res = await fetch(`/ads/${adId}/${user.id}`, {
+          method: 'DELETE'
+        });
+
+        const text = await res.text();
+
+        if (!res.ok) {
+          alert(text || 'Ошибка удаления');
+          return;
+        }
+
+        alert(text || 'Удалено');
+        loadAllAds();
+        loadMyAds();
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка удаления');
+      }
+    }
+
+    async function loadAllAds() {
+      try {
+        const res = await fetch('/ads');
+        const ads = await res.json();
+
+        const container = document.getElementById('allAds');
+        const currentUser = getUser();
+
+        if (!ads.length) {
+          container.innerHTML = '<div class="muted">Объявлений пока нет</div>';
+          return;
+        }
+
+        container.innerHTML = ads.map(ad => {
+          const isOwner = currentUser && String(currentUser.id) === String(ad.user_id);
+
+          return `
+            <div class="ad-item">
+              <img src="${ad.image_url ? escapeHtml(ad.image_url) : 'https://via.placeholder.com/400x300?text=Нет+фото'}" alt="Фото объявления">
+              <div class="ad-content">
+                <div class="ad-title">${escapeHtml(ad.title)}</div>
+                <div class="ad-price">${escapeHtml(ad.price)} ₽</div>
+                <div class="ad-email">Продавец: ${escapeHtml(ad.email || 'Не указан')}</div>
+                ${isOwner ? `<button class="red" onclick="deleteAd(${ad.id})">Удалить</button>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error(e);
+        document.getElementById('allAds').innerHTML = '<div class="muted">Ошибка загрузки объявлений</div>';
+      }
+    }
+
+    async function loadMyAds() {
+      try {
+        const user = getUser();
+        const container = document.getElementById('myAds');
+
+        if (!user) {
+          container.innerHTML = '<div class="muted">Войдите, чтобы увидеть свои объявления</div>';
+          return;
+        }
+
+        const res = await fetch('/my-ads/' + user.id);
+        const ads = await res.json();
+
+        if (!ads.length) {
+          container.innerHTML = '<div class="muted">У вас пока нет объявлений</div>';
+          return;
+        }
+
+        container.innerHTML = ads.map(ad => `
+          <div class="ad-item">
+            <img src="${ad.image_url ? escapeHtml(ad.image_url) : 'https://via.placeholder.com/400x300?text=Нет+фото'}" alt="Фото объявления">
+            <div class="ad-content">
+              <div class="ad-title">${escapeHtml(ad.title)}</div>
+              <div class="ad-price">${escapeHtml(ad.price)} ₽</div>
+              <div class="ad-email">Ваше объявление</div>
+              <button class="red" onclick="deleteAd(${ad.id})">Удалить</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error(e);
+        document.getElementById('myAds').innerHTML = '<div class="muted">Ошибка загрузки моих объявлений</div>';
+      }
+    }
+
+    updateAuthUI();
+    loadAllAds();
+    loadMyAds();
+  </script>
 </body>
 </html>
