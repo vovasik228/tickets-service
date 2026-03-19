@@ -26,7 +26,7 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 20px auto;
       padding: 0 15px;
     }
@@ -43,13 +43,18 @@
       margin-top: 0;
     }
 
-    input, button {
+    input, textarea, button, select {
       width: 100%;
       padding: 12px;
       margin-top: 10px;
       border-radius: 8px;
       border: 1px solid #ccc;
       font-size: 16px;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
     }
 
     button {
@@ -69,6 +74,14 @@
 
     button.red:hover {
       background: #b3261e;
+    }
+
+    button.green {
+      background: #0a7f2e;
+    }
+
+    button.green:hover {
+      background: #086523;
     }
 
     .row {
@@ -127,17 +140,72 @@
       color: #777;
     }
 
-    .hidden {
-      display: none;
-    }
-
     .status {
       font-weight: bold;
       margin-bottom: 10px;
     }
 
-    @media (max-width: 800px) {
-      .row {
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+    }
+
+    .dialogs-list {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .dialog-item {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+
+    .dialog-item:hover {
+      background: #f7f7f7;
+    }
+
+    .messages-box {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: #fff;
+      padding: 12px;
+      min-height: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+
+    .message {
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      max-width: 80%;
+      word-break: break-word;
+    }
+
+    .message.mine {
+      background: #dcf8c6;
+      margin-left: auto;
+    }
+
+    .message.other {
+      background: #f1f1f1;
+      margin-right: auto;
+    }
+
+    .message-meta {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 900px) {
+      .row,
+      .chat-layout {
         grid-template-columns: 1fr;
       }
 
@@ -187,9 +255,33 @@
       <h2>📢 Все объявления</h2>
       <div id="allAds" class="ads-grid"></div>
     </div>
+
+    <div class="card">
+      <h2>💬 Чат</h2>
+      <div class="chat-layout">
+        <div>
+          <h3>Диалоги</h3>
+          <div id="dialogsList" class="dialogs-list">
+            <div class="dialog-item muted">Сначала войдите</div>
+          </div>
+        </div>
+
+        <div>
+          <h3 id="chatTitle">Выберите собеседника</h3>
+          <div id="messagesBox" class="messages-box">
+            <div class="muted">Сообщений пока нет</div>
+          </div>
+          <textarea id="messageText" placeholder="Введите сообщение"></textarea>
+          <button class="green" onclick="sendMessage()">Отправить сообщение</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
+    let selectedCompanionId = null;
+    let selectedCompanionEmail = '';
+
     function getUser() {
       const raw = localStorage.getItem('user');
       return raw ? JSON.parse(raw) : null;
@@ -225,9 +317,7 @@
 
         const res = await fetch('/register', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
 
@@ -244,6 +334,7 @@
         updateAuthUI();
         loadMyAds();
         loadAllAds();
+        loadDialogs();
       } catch (e) {
         console.error(e);
         alert('Ошибка регистрации');
@@ -262,9 +353,7 @@
 
         const res = await fetch('/login', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
 
@@ -275,14 +364,13 @@
         }
 
         const user = await res.json();
-
-        // сохраняем пользователя
         setUser(user);
 
         alert('Вход выполнен');
         updateAuthUI();
         loadMyAds();
         loadAllAds();
+        loadDialogs();
       } catch (e) {
         console.error(e);
         alert('Ошибка входа');
@@ -291,8 +379,13 @@
 
     function logoutUser() {
       clearUser();
+      selectedCompanionId = null;
+      selectedCompanionEmail = '';
       updateAuthUI();
       document.getElementById('myAds').innerHTML = '';
+      document.getElementById('dialogsList').innerHTML = '<div class="dialog-item muted">Сначала войдите</div>';
+      document.getElementById('messagesBox').innerHTML = '<div class="muted">Сообщений пока нет</div>';
+      document.getElementById('chatTitle').textContent = 'Выберите собеседника';
       alert('Вы вышли из аккаунта');
     }
 
@@ -371,17 +464,15 @@
         }
 
         let imageUrl = null;
-
         const fileInput = document.getElementById('image');
+
         if (fileInput.files && fileInput.files[0]) {
           imageUrl = await uploadImage();
         }
 
         const res = await fetch('/ads', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title,
             price: Number(price),
@@ -442,6 +533,139 @@
       }
     }
 
+    function openChatWith(userId, email) {
+      const currentUser = getUser();
+
+      if (!currentUser) {
+        alert('Сначала войдите');
+        return;
+      }
+
+      if (String(currentUser.id) === String(userId)) {
+        alert('Нельзя писать самому себе');
+        return;
+      }
+
+      selectedCompanionId = userId;
+      selectedCompanionEmail = email || 'Пользователь';
+
+      document.getElementById('chatTitle').textContent = 'Чат с: ' + selectedCompanionEmail;
+      loadMessages();
+    }
+
+    async function sendMessage() {
+      try {
+        const currentUser = getUser();
+
+        if (!currentUser) {
+          alert('Сначала войдите');
+          return;
+        }
+
+        if (!selectedCompanionId) {
+          alert('Сначала выберите собеседника');
+          return;
+        }
+
+        const text = document.getElementById('messageText').value.trim();
+
+        if (!text) {
+          alert('Введите сообщение');
+          return;
+        }
+
+        const res = await fetch('/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from_user: currentUser.id,
+            to_user: selectedCompanionId,
+            text
+          })
+        });
+
+        const responseText = await res.text();
+
+        if (!res.ok) {
+          alert(responseText || 'Ошибка отправки');
+          return;
+        }
+
+        document.getElementById('messageText').value = '';
+        loadMessages();
+        loadDialogs();
+      } catch (e) {
+        console.error(e);
+        alert('Ошибка отправки сообщения');
+      }
+    }
+
+    async function loadMessages() {
+      try {
+        const currentUser = getUser();
+
+        if (!currentUser || !selectedCompanionId) {
+          document.getElementById('messagesBox').innerHTML = '<div class="muted">Выберите собеседника</div>';
+          return;
+        }
+
+        const res = await fetch(`/messages/${currentUser.id}/${selectedCompanionId}`);
+        const messages = await res.json();
+
+        const box = document.getElementById('messagesBox');
+
+        if (!messages.length) {
+          box.innerHTML = '<div class="muted">Сообщений пока нет</div>';
+          return;
+        }
+
+        box.innerHTML = messages.map(msg => {
+          const mine = String(msg.from_user) === String(currentUser.id);
+
+          return `
+            <div class="message ${mine ? 'mine' : 'other'}">
+              <div class="message-meta">${mine ? 'Вы' : escapeHtml(msg.from_email || 'Собеседник')}</div>
+              <div>${escapeHtml(msg.text)}</div>
+            </div>
+          `;
+        }).join('');
+
+        box.scrollTop = box.scrollHeight;
+      } catch (e) {
+        console.error(e);
+        document.getElementById('messagesBox').innerHTML = '<div class="muted">Ошибка загрузки сообщений</div>';
+      }
+    }
+
+    async function loadDialogs() {
+      try {
+        const currentUser = getUser();
+        const list = document.getElementById('dialogsList');
+
+        if (!currentUser) {
+          list.innerHTML = '<div class="dialog-item muted">Сначала войдите</div>';
+          return;
+        }
+
+        const res = await fetch('/dialogs/' + currentUser.id);
+        const dialogs = await res.json();
+
+        if (!dialogs.length) {
+          list.innerHTML = '<div class="dialog-item muted">Диалогов пока нет</div>';
+          return;
+        }
+
+        list.innerHTML = dialogs.map(dialog => `
+          <div class="dialog-item" onclick="openChatWith(${dialog.companion_id}, '${String(dialog.companion_email || '').replace(/'/g, "\\'")}')">
+            ${escapeHtml(dialog.companion_email || 'Пользователь')}
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error(e);
+        document.getElementById('dialogsList').innerHTML = '<div class="dialog-item muted">Ошибка загрузки диалогов</div>';
+      }
+    }
+
     async function loadAllAds() {
       try {
         const res = await fetch('/ads');
@@ -465,6 +689,7 @@
                 <div class="ad-title">${escapeHtml(ad.title)}</div>
                 <div class="ad-price">${escapeHtml(ad.price)} ₽</div>
                 <div class="ad-email">Продавец: ${escapeHtml(ad.email || 'Не указан')}</div>
+                ${!isOwner ? `<button class="green" onclick="openChatWith(${ad.user_id}, '${String(ad.email || '').replace(/'/g, "\\'")}')">Написать продавцу</button>` : ''}
                 ${isOwner ? `<button class="red" onclick="deleteAd(${ad.id})">Удалить</button>` : ''}
               </div>
             </div>
@@ -514,6 +739,7 @@
     updateAuthUI();
     loadAllAds();
     loadMyAds();
+    loadDialogs();
   </script>
 </body>
 </html>

@@ -12,7 +12,6 @@ app.use(express.json());
 app.use(express.static(__dirname));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// создаём папку uploads
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
@@ -60,7 +59,6 @@ app.get('/', (req, res) => {
 // АВТОРИЗАЦИЯ
 // =======================
 
-// регистрация
 app.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -83,7 +81,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// вход
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -164,7 +161,6 @@ app.post('/upload', (req, res) => {
 // ОБЪЯВЛЕНИЯ
 // =======================
 
-// добавить объявление
 app.post('/ads', async (req, res) => {
   try {
     const { title, price, user_id, image_url } = req.body;
@@ -185,7 +181,6 @@ app.post('/ads', async (req, res) => {
   }
 });
 
-// получить все объявления
 app.get('/ads', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -202,7 +197,6 @@ app.get('/ads', async (req, res) => {
   }
 });
 
-// получить мои объявления
 app.get('/my-ads/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -222,7 +216,6 @@ app.get('/my-ads/:userId', async (req, res) => {
   }
 });
 
-// удалить объявление только владельцу
 app.delete('/ads/:id/:userId', async (req, res) => {
   try {
     const id = req.params.id;
@@ -258,6 +251,86 @@ app.delete('/ads/:id/:userId', async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).send('Ошибка удаления');
+  }
+});
+
+// =======================
+// ЧАТ
+// =======================
+
+// отправить сообщение
+app.post('/messages', async (req, res) => {
+  try {
+    const { from_user, to_user, text } = req.body;
+
+    if (!from_user || !to_user || !text) {
+      return res.status(400).send('Не хватает данных');
+    }
+
+    await pool.query(
+      'INSERT INTO messages (from_user, to_user, text) VALUES ($1, $2, $3)',
+      [from_user, to_user, text]
+    );
+
+    res.send('Сообщение отправлено');
+  } catch (e) {
+    console.error(e);
+    res.status(500).send('Ошибка отправки сообщения');
+  }
+});
+
+// получить диалог между двумя пользователями
+app.get('/messages/:user1/:user2', async (req, res) => {
+  try {
+    const { user1, user2 } = req.params;
+
+    const result = await pool.query(`
+      SELECT 
+        messages.*,
+        u1.email AS from_email,
+        u2.email AS to_email
+      FROM messages
+      LEFT JOIN users u1 ON messages.from_user = u1.id
+      LEFT JOIN users u2 ON messages.to_user = u2.id
+      WHERE 
+        (from_user = $1 AND to_user = $2)
+        OR
+        (from_user = $2 AND to_user = $1)
+      ORDER BY messages.id ASC
+    `, [user1, user2]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).send('Ошибка загрузки сообщений');
+  }
+});
+
+// список диалогов пользователя
+app.get('/dialogs/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const result = await pool.query(`
+      SELECT DISTINCT
+        CASE
+          WHEN from_user = $1 THEN to_user
+          ELSE from_user
+        END AS companion_id,
+        CASE
+          WHEN from_user = $1 THEN u2.email
+          ELSE u1.email
+        END AS companion_email
+      FROM messages
+      LEFT JOIN users u1 ON messages.from_user = u1.id
+      LEFT JOIN users u2 ON messages.to_user = u2.id
+      WHERE from_user = $1 OR to_user = $1
+    `, [userId]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).send('Ошибка загрузки диалогов');
   }
 });
 
@@ -308,10 +381,6 @@ app.get('/init-db', async (req, res) => {
     res.status(500).send('Ошибка создания БД');
   }
 });
-
-// =======================
-// ЗАПУСК
-// =======================
 
 app.listen(PORT, () => {
   console.log('СЕРВЕР ЗАПУЩЕН НА ПОРТУ', PORT);
